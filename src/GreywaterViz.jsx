@@ -1222,7 +1222,6 @@ export default function GreywaterViz() {
   ], [readings]);
 
 
-  const phC = PHASE_COLORS[phase] || "#4a6580";
 
   return (
     <div style={S.root}>
