@@ -1221,531 +1221,86 @@ export default function GreywaterViz() {
     { id: "NH3",  label: "NH₃",        val: readings.nh3.toFixed(2),        unit: " mg/L",  col: "#ff6b8a", safe: [0,1],     pct: Math.min(readings.nh3 / 5, 1) * 100 },
   ], [readings]);
 
+
+  const phC = PHASE_COLORS[phase] || "#4a6580";
+
   return (
     <div style={S.root}>
       <style>{CSS}</style>
 
-      {/* ── HEADER ─────────────────────────────────────────── */}
-      <header style={{ ...S.header, height: isMobile ? 48 : 52 }}>
+      {/* ── HEADER ── */}
+      <header style={S.header}>
         <div style={S.logoRow}>
           <div style={S.logoPulse} />
-          <span style={{ ...S.logoText, fontSize: isMobile ? 15 : 17 }}>Water<span style={{ color: "#00d4ff" }}>IQ</span></span>
-          {!isMobile && <><div style={S.logoDivider} /><span style={S.logoSub}>EC · Lamella · Edge AI  v6.0</span></>}
+          <span style={S.logoText}>Water<span style={{ color: "#00d4ff" }}>IQ</span></span>
         </div>
 
-        {/* On mobile: just phase pill in center */}
-        <div style={{ ...S.headerCenter, justifyContent: isMobile ? "flex-start" : "center" }}>
-          <div style={{ ...S.pill, borderColor: phC + "55", background: phC + "12", color: phC, fontSize: isMobile ? 9 : 9 }}>
-            <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: phC, boxShadow: `0 0 6px ${phC}`, flexShrink: 0 }} />
-            <span style={{ fontWeight: 700 }}>{phase}</span>
-            {!isMobile && <span style={{ opacity: 0.55, fontSize: 8 }}> — {PHASE_DESCRIPTIONS[phase]}</span>}
-          </div>
-          {!isMobile && brMeta && (
-            <div style={{ ...S.pill, borderColor: brMeta.hex + "77", background: brMeta.hex + "18", color: brMeta.hex }}>
-              {brMeta.emoji} &nbsp;{bracket} · {brMeta.label}
-            </div>
-          )}
-          {!isMobile && (
-            <div style={{ ...S.pill, borderColor: WATER_TYPES[waterType].color + "55", background: WATER_TYPES[waterType].color + "0e", color: WATER_TYPES[waterType].color, fontSize: 9 }}>
-              💧 {WATER_TYPES[waterType].label}
-            </div>
-          )}
-          {!isMobile && ecActive && (
-            <div style={{ ...S.pill, borderColor: "#ffdb5866", background: "#ffdb580e", color: "#ffdb58", fontSize: 9 }}>
-              ⚡ EC {Math.floor(ecTimer/60)}:{String(ecTimer%60).padStart(2,"0")} · {gateOpen ? "GATE OPEN" : "GATE CLOSED"}
-            </div>
-          )}
+        {/* Phase pill */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, border: `1px solid ${phC}55`, background: phC + "12", color: phC, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700 }}>
+          <div className="pulse-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: phC, boxShadow: `0 0 8px ${phC}`, flexShrink: 0 }} />
+          {phase}
         </div>
 
-        {/* Header right: stats on desktop, run button on mobile */}
-        {isMobile ? (
-          <button
-            className={running ? "btn-running" : "btn-primary"}
-            onClick={triggerCycle}
-            disabled={running}
-            style={{ width: "auto", padding: "8px 14px", fontSize: 10, borderRadius: 7, flexShrink: 0 }}
-          >
-            {running ? <><span className="spin-icon">⟳</span></> : <>▶ Run</>}
-          </button>
-        ) : (
-          <div style={S.headerStats}>
-            {[["CYCLES", cycleCount, "#c8e8f8"], ["REUSE", reusePct + "%", "#00ff9d"], ["EFF.", efficiency + "%", "#00d4ff"], ["LAMELLA", lamellaEff + "%", "#7fffd4"]].map(([k, v, c]) => (
-              <div key={k} style={S.hStat}>
-                <span style={{ fontSize: 7, color: "#2a5070", letterSpacing: "0.12em" }}>{k}</span>
-                <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 13, fontWeight: 700, color: c }}>{v}</span>
-              </div>
-            ))}
-            <div style={S.hint}>🖱 Drag · Scroll</div>
-          </div>
-        )}
+        {/* Run button */}
+        <button
+          className={running ? "btn-running" : "btn-primary"}
+          onClick={triggerCycle}
+          disabled={running}
+          style={{ width: "auto", padding: "10px 20px", fontSize: 11, borderRadius: 8, flexShrink: 0 }}
+        >
+          {running ? <span className="spin-icon">⟳</span> : "▶ Run"}
+        </button>
       </header>
 
-      {/* ── BODY ───────────────────────────────────────────── */}
-      {isMobile ? (
-        /* ══ MOBILE LAYOUT ══ */
-        <div style={S.bodyMobile}>
-          {/* Canvas fills screen above sheet */}
-          <div style={{ ...S.canvasWrapMobile, flex: 1, minHeight: 0 }}>
-            <canvas ref={canvasRef} style={S.canvas} />
+      {/* ── BODY: canvas top, stages bottom ── */}
+      <div style={S.body}>
 
-            {/* Minimal phase dot on mobile */}
-            <div style={{ position: "absolute", top: 8, left: 8, display: "flex", flexDirection: "column", gap: 3, pointerEvents: "none" }}>
-              {PHASES.map((p, i) => {
-                const ci = PHASES.indexOf(phase), done = i < ci, cur = p === phase;
-                const c = PHASE_COLORS[p] || "#4a6580";
-                return <div key={p} style={{ width: cur ? 8 : 5, height: cur ? 8 : 5, borderRadius: "50%", background: cur ? c : done ? "#00ff9d33" : "#071828", boxShadow: cur ? `0 0 8px ${c}` : "none", transition: "all 0.3s", animation: cur ? "pulseDot 1s infinite" : "none" }} />;
-              })}
-            </div>
+        {/* 3D CANVAS */}
+        <div style={S.canvasWrap}>
+          <canvas ref={canvasRef} style={S.canvas} />
 
-            {/* Mobile EC bar — compact strip at top of canvas */}
-            {ecActive && (
-              <div style={{ position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", background: "#030c16ee", border: "1px solid #ffdb5833", borderRadius: 6, padding: "5px 12px", backdropFilter: "blur(8px)", pointerEvents: "none", display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#ffdb58" }}>⚡ EC</span>
-                <div style={{ width: 80, height: 3, background: "#071828", borderRadius: 99, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${(ecTimer / 900) * 100}%`, background: "linear-gradient(90deg,#00d4ff,#ffdb58)", borderRadius: 99, transition: "width 0.4s" }} />
-                </div>
-                <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 9, color: "#ffdb58" }}>{Math.floor(ecTimer/60)}:{String(ecTimer%60).padStart(2,"0")}</span>
-              </div>
-            )}
-
-            {/* Mobile sparklines — compact bottom strip */}
-            {!sheetOpen && (
-              <div style={{ position: "absolute", bottom: 8, right: 8, background: "#030c16dd", border: "1px solid #0d2235", borderRadius: 7, padding: "7px 10px", backdropFilter: "blur(8px)", pointerEvents: "none" }}>
-                {[
-                  { label: "pH", data: sparkPH, col: "#00ff9d", val: readings.ph.toFixed(1) },
-                  { label: "TDS", data: sparkTDS, col: "#ff8c42", val: readings.tds },
-                  { label: "Turb", data: sparkTurb, col: "#00d4ff", val: readings.turbidity.toFixed(1) },
-                ].map(s => (
-                  <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                    <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: s.col, width: 22, flexShrink: 0 }}>{s.label}</span>
-                    <Sparkline data={s.data} color={s.col} w={60} h={14} />
-                    <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 9, color: s.col, minWidth: 32, textAlign: "right" }}>{s.val}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Valve pills on mobile */}
-            {!sheetOpen && (
-              <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", flexDirection: "column", gap: 4, pointerEvents: "none" }}>
-                <VPill label="A" open={valveA > 0.5} col="#00ff9d" dest="Reuse" />
-                <VPill label="B" open={valveB > 0.5} col="#ff3f5a" dest="Treat" />
-              </div>
-            )}
-
-            {/* Tank levels mobile — top center */}
-            <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 8, pointerEvents: "none" }}>
-              <TLvl label="A" sub="REUSE" level={tankALevel} col="#00ff9d" />
-              <TLvl label="B" sub="TREAT" level={tankBLevel} col="#ff3f5a" />
-            </div>
-
-            {/* Classification popup */}
-            {popup && (
-              <div className="modal-in" style={{ ...S.modal, borderColor: BRACKET_META[popup.br].hex + "aa", boxShadow: `0 0 60px ${BRACKET_META[popup.br].hex}28` }}>
-                <button onClick={() => setPopup(null)} style={S.closeBtn}>✕</button>
-                <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060", letterSpacing: "0.2em", marginBottom: 10 }}>◈ WATER QUALITY REPORT</div>
-                <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 56, fontWeight: 900, color: BRACKET_META[popup.br].hex, lineHeight: 1, textShadow: `0 0 30px ${BRACKET_META[popup.br].hex}66` }}>{popup.br}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#c8e8f8", marginTop: 6 }}>{BRACKET_META[popup.br].label}</div>
-                <div style={{ fontSize: 9, color: "#2a5070", marginTop: 3, fontFamily: "'Space Mono',monospace" }}>{BRACKET_META[popup.br].desc}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 12 }}>
-                  {[["pH", popup.rd.ph, ""], ["TDS", popup.rd.tds, " mg/L"], ["Turbidity", popup.rd.turbidity, " NTU"], ["ORP", popup.rd.orp, " mV"]].map(([k, v, u]) => (
-                    <div key={k} style={{ background: "#030c16", borderRadius: 7, padding: "7px 8px", border: "1px solid #0d2235", textAlign: "center" }}>
-                      <div style={{ fontSize: 8, color: "#1a3a5a", fontFamily: "'Space Mono',monospace", marginBottom: 2 }}>{k}</div>
-                      <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 13, fontWeight: 700, color: "#c8e8f8" }}>{v}<span style={{ fontSize: 8, opacity: 0.5 }}>{u}</span></div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 7, marginTop: 12, justifyContent: "center" }}>
-                  <div style={{ padding: "7px 12px", borderRadius: 6, background: BRACKET_META[popup.br].reusable ? "#00281a" : "#1c0208", border: `1.5px solid ${BRACKET_META[popup.br].hex}`, color: BRACKET_META[popup.br].hex, fontFamily: "'Orbitron',monospace", fontSize: 10, fontWeight: 700 }}>
-                    {popup.toA ? "→ TANK A · REUSABLE" : "→ TANK B · TREATMENT"}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Drift badge mobile */}
-            {showDrift && (
-              <div style={{ ...S.driftBadge, right: 8, top: "auto", bottom: sheetOpen ? "auto" : 100 }}>
-                <div className={driftState !== "normal" ? "pulse-dot" : ""} style={{ width: 6, height: 6, borderRadius: "50%", background: { normal: "#00ff9d", degraded: "#ffdb58", flatline: "#ff3f5a", recalibrating: "#00d4ff" }[driftState], flexShrink: 0 }} />
-                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: { normal: "#00ff9d", degraded: "#ffdb58", flatline: "#ff3f5a", recalibrating: "#00d4ff" }[driftState] }}>
-                  {{ normal: "NOMINAL", degraded: "⚠ DRIFT", flatline: "⛔ FLATLINE", recalibrating: "↻ RECAL" }[driftState]}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* ── BOTTOM SHEET ── */}
-          <div style={{ ...S.panelMobile, height: sheetOpen ? "55vh" : 52 }}>
-            {/* Drag handle + tab bar */}
-            <div
-              onClick={() => setSheetOpen(p => !p)}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 0 0", cursor: "pointer", flexShrink: 0 }}
-            >
-              <div style={{ width: 36, height: 4, borderRadius: 99, background: "#1a3a5a" }} />
-            </div>
-            <div style={S.tabBar}>
-              {[["controls", "Controls"], ["structure", "Tank"], ["matrix", "F1–F5"], ["log", "Log"]].map(([id, label]) => (
-                <button key={id} style={{ ...S.tabMobile, ...(activeTab === id ? S.tabActive : {}) }}
-                  onClick={e => { e.stopPropagation(); setActiveTab(id); setSheetOpen(true); }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {/* Sheet content — scrollable */}
-            <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-              {activeTab === "controls" && renderControlsTab()}
-              {activeTab === "structure" && renderStructureTab()}
-              {activeTab === "matrix" && renderMatrixTab()}
-              {activeTab === "log" && renderLogTab()}
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* ══ DESKTOP LAYOUT ══ */
-        <div style={S.body}>
-          <aside style={S.panel}>
-            <div style={S.tabBar}>
-              {[["controls", "Controls"], ["structure", "Tank"], ["matrix", "Matrix"], ["log", "Log"]].map(([id, label]) => (
-                <button key={id} style={{ ...S.tab, ...(activeTab === id ? S.tabActive : {}) }} onClick={() => setActiveTab(id)}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {activeTab === "controls" && renderControlsTab()}
-            {activeTab === "structure" && renderStructureTab()}
-            {activeTab === "matrix" && renderMatrixTab()}
-            {activeTab === "log" && renderLogTab()}
-          </aside>
-
-          {/* ── 3D CANVAS ── */}
-          <div style={S.canvasWrap}>
-            <canvas ref={canvasRef} style={S.canvas} />
-            {renderCanvasOverlays()}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  // ─── RENDER FUNCTIONS (extracted for mobile/desktop reuse) ───
-
-  function renderControlsTab() {
-    return (
-      <>
-        {saltAlert && (
-          <div style={{ margin: "8px 14px 0", padding: "7px 10px", borderRadius: 6, background: "#ffdb5812", border: "1px solid #ffdb5866", display: "flex", alignItems: "center", gap: 7 }}>
-            <span style={{ fontSize: 12 }}>🧂</span>
-            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: "#ffdb58" }}>Add pinch of table salt — low conductivity</span>
-          </div>
-        )}
-        <Sec title="WATER TYPE">
-          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            {Object.entries(WATER_TYPES).map(([key, wt]) => (
-              <button key={key} disabled={running}
-                onClick={() => setWaterType(key)}
-                style={{ padding: "10px 10px", borderRadius: 7, border: `1.5px solid ${waterType === key ? wt.color + "aa" : "#0d2235"}`, background: waterType === key ? wt.color + "12" : "transparent", color: waterType === key ? wt.color : "#2a5070", fontFamily: "'Space Mono',monospace", fontSize: 9, fontWeight: 700, cursor: running ? "not-allowed" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.2s", opacity: running ? 0.4 : 1 }}>
-                <span>{wt.label}</span>
-                <span style={{ opacity: 0.6, fontSize: 8 }}>{wt.desc}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ marginTop: 8, padding: "6px 9px", borderRadius: 5, background: "#030c16", border: "1px solid #071828" }}>
-            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060", marginBottom: 4 }}>◈ FLOC / CLEAR TIMELINE</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "'Orbitron',monospace", fontSize: 9 }}>
-              <span style={{ color: "#00d4ff" }}>Floc: {Math.round(WATER_TYPES[waterType].flocMin/60)}–{Math.round(WATER_TYPES[waterType].flocMax/60)} min</span>
-              <span style={{ color: "#00ff9d" }}>Clear: {Math.round(WATER_TYPES[waterType].clearMin/60)}–{Math.round(WATER_TYPES[waterType].clearMax/60)} min</span>
-            </div>
-          </div>
-        </Sec>
-
-        <Sec title="SIMULATION">
-          <button className={running ? "btn-running" : "btn-primary"} onClick={triggerCycle} disabled={running}>
-            {running ? <><span className="spin-icon">⟳</span> Processing…</> : <>▶&ensp;Run — {WATER_TYPES[waterType].label}</>}
-          </button>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
-            <button className="btn-sec btn-yellow" onClick={triggerDrift} disabled={running}>⚠ Drift Sim</button>
-            <button className="btn-sec btn-ghost" onClick={resetTanks} disabled={running}>↺ Reset Tanks</button>
-          </div>
-          <button className="btn-sec btn-blue" onClick={() => lastResult && setPopup(lastResult)} disabled={!lastResult} style={{ marginTop: 6, width: "100%" }}>🔬 &ensp;Last Analysis</button>
-          <button className="btn-sec btn-ghost" onClick={() => setShowAnalytics(p => !p)} style={{ marginTop: 6, width: "100%" }}>{showAnalytics ? "◈ Hide" : "◈ Show"} Analytics</button>
-        </Sec>
-
-        {(ecActive || ecTimer > 0) && (
-          <Sec title="EC CHAMBER LIVE">
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: "#ffdb58" }}>{EC_STAGES[ecStageIdx]?.label || "STANDBY"}</span>
-                <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 11, fontWeight: 700, color: "#ffdb58" }}>{Math.floor(ecTimer / 60)}:{String(ecTimer % 60).padStart(2, "0")} / 15:00</span>
-              </div>
-              <div style={{ height: 3, background: "#071828", borderRadius: 99, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${(ecTimer / 900) * 100}%`, background: "linear-gradient(90deg,#00d4ff,#ffdb58,#00ff9d)", borderRadius: 99, transition: "width 0.4s" }} />
-              </div>
-              <div style={{ fontSize: 8, color: "#1a3a5a", fontFamily: "'Space Mono',monospace", marginTop: 4 }}>{EC_STAGES[ecStageIdx]?.desc}</div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div style={{ flex: 1, textAlign: "center", padding: "6px 0", background: "#030c16", border: "1px solid #ffdb5822", borderRadius: 6 }}>
-                <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 14, fontWeight: 700, color: "#ffdb58" }}>{polarityCount}</div>
-                <div style={{ fontSize: 8, color: "#1a3a5a", fontFamily: "'Space Mono',monospace" }}>POLARITY REV.</div>
-              </div>
-              <div style={{ flex: 1, textAlign: "center", padding: "6px 0", background: "#030c16", border: `1px solid ${gateOpen ? "#00ff9d44" : "#0d2235"}`, borderRadius: 6 }}>
-                <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 11, fontWeight: 700, color: gateOpen ? "#00ff9d" : "#1a3a5a" }}>{gateOpen ? "OPEN" : "CLOSED"}</div>
-                <div style={{ fontSize: 8, color: "#1a3a5a", fontFamily: "'Space Mono',monospace" }}>TIMED GATE</div>
-              </div>
-              <div style={{ flex: 1, textAlign: "center", padding: "6px 0", background: "#030c16", border: "1px solid #7fffd422", borderRadius: 6 }}>
-                <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 14, fontWeight: 700, color: "#7fffd4" }}>{lamellaEff}%</div>
-                <div style={{ fontSize: 8, color: "#1a3a5a", fontFamily: "'Space Mono',monospace" }}>LAMELLA EFF.</div>
-              </div>
-            </div>
-          </Sec>
-        )}
-
-        <Sec title="MANUAL PARAMETERS" sub="Override">
-          <SRow label="Contamination Level" val={Math.round(contamination * 100) + "%"} color="#ffdb58"
-            min={0} max={100} value={Math.round(contamination * 100)} disabled={running}
-            onChange={e => setContam(+e.target.value / 100)} left="F1  Clean" right="F5  Severe" />
-          <SRow label="Swirl Intensity" val={Math.round(swirlSpeed * 100) + "%"} color="#00d4ff"
-            min={10} max={250} value={Math.round(swirlSpeed * 100)}
-            onChange={e => setSwirlSpeed(+e.target.value / 100)} />
-        </Sec>
-
-        <Sec title="3D LAYER VISIBILITY">
-          <Tog label="Oil Film Layer" color="#d4a017" val={showOil} on={() => setShowOil(p => !p)} />
-          <Tog label="Sludge Zone" color="#8c5a2a" val={showSludge} on={() => setShowSludge(p => !p)} />
-          <Tog label="Drift Monitor Ring" color="#ffdb58" val={showDrift} on={() => setShowDrift(p => !p)} />
-        </Sec>
-
-        <Sec title="SENSOR PROBES" sub="Click in 3D view">
-          {sensorRows.map(s => (
-            <div key={s.id} className="sensor-card"
-              style={{ borderColor: selectedSensor === s.id ? s.col : "#0d2235", background: selectedSensor === s.id ? s.col + "10" : "transparent" }}
-              onClick={() => setSelSensor(p => p === s.id ? null : s.id)}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 10, color: s.col, fontWeight: 700, fontFamily: "'Space Mono',monospace" }}>{s.label}</span>
-                <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 13, fontWeight: 700, color: s.col }}>{s.val}<span style={{ fontSize: 8, opacity: 0.6 }}>{s.unit}</span></span>
-              </div>
-              <div style={{ height: 2, background: "#071828", borderRadius: 99, marginTop: 6, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: s.pct + "%", background: s.col, borderRadius: 99, transition: "width 0.6s ease", boxShadow: `0 0 6px ${s.col}88` }} />
-              </div>
-              <div style={{ fontSize: 9, color: "#1a3a5a", marginTop: 3, fontFamily: "'Space Mono',monospace" }}>Safe: {s.safe[0]}–{s.safe[1]}{s.unit}</div>
-            </div>
-          ))}
-        </Sec>
-      </>
-    );
-  }
-
-  function renderStructureTab() {
-    return (
-      <Sec title="TANK STRUCTURE" sub="Design doc">
-        <div style={{ marginBottom: 10, padding: "8px 10px", borderRadius: 6, background: "#030c16", border: "1px solid #071828" }}>
-          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060", marginBottom: 5 }}>◈ TANK SPEC</div>
-          {[["Diameter","15–20 cm"],["Height","60–80 cm"],["Material","Clear PVC / Acrylic"],["Power","12V DC · ESP32"],["Gate","15 min EC contact"]].map(([k,v]) => (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #071828" }}>
-              <span style={{ fontSize: 9, color: "#2a5070", fontFamily: "'Space Mono',monospace" }}>{k}</span>
-              <span style={{ fontSize: 9, color: "#c8e8f8", fontFamily: "'Orbitron',monospace", fontWeight: 700 }}>{v}</span>
-            </div>
-          ))}
-        </div>
-        {TANK_STRUCTURE.map(stage => {
-          const isActive = activeStage === stage.id;
-          return (
-            <div key={stage.id} style={{ padding: "10px", borderRadius: 7, marginBottom: 6, border: `1px solid ${isActive ? stage.color + "88" : "#0d2235"}`, background: isActive ? stage.color + "0d" : "transparent", transition: "all 0.3s" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 16 }}>{stage.icon}</span>
-                <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 9, fontWeight: 700, color: stage.color, flex: 1 }}>{stage.label}</span>
-                {isActive && <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: stage.color }} />}
-              </div>
-              <div style={{ fontSize: 9, color: "#2a5070", fontFamily: "'Space Mono',monospace", lineHeight: 1.55 }}>{stage.desc}</div>
-            </div>
-          );
-        })}
-        <div style={{ marginTop: 6, padding: "8px 10px", borderRadius: 6, background: "#030c16", border: "1px solid #0d2235" }}>
-          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060", marginBottom: 5 }}>◈ ESP32 SEQUENCE</div>
-          {["Inlet sensor detects water","15-min countdown starts","EC discs run full current","Timer ends → servo opens gate","Water flows → lamella","Turbidity confirms clear","Servo closes gate","Cycle repeats"].map((step, i) => (
-            <div key={i} style={{ display: "flex", gap: 7, padding: "3px 0", borderBottom: "1px solid #071828" }}>
-              <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 8, color: "#1a4060", minWidth: 14 }}>{i + 1}.</span>
-              <span style={{ fontSize: 9, color: "#2a5070", fontFamily: "'Space Mono',monospace" }}>{step}</span>
-            </div>
-          ))}
-        </div>
-      </Sec>
-    );
-  }
-
-  function renderMatrixTab() {
-    return (
-      <Sec title="BRACKET MATRIX" sub="Classification guide">
-        {Object.entries(BRACKET_META).map(([br, m]) => (
-          <div key={br} style={{ padding: "10px", borderRadius: 7, margin: "0 0 6px", border: `1px solid ${bracket === br ? m.hex + "88" : "#0d2235"}`, background: bracket === br ? m.hex + "0e" : "transparent", opacity: !bracket || bracket === br ? 1 : 0.35, transition: "all 0.3s" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-              <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 15, fontWeight: 800, color: m.hex }}>{br}</span>
-              <div style={{ flex: 1, height: 1, background: m.hex + "33" }} />
-              <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 3, background: m.reusable ? "#00ff9d1a" : "#ff3f5a1a", color: m.reusable ? "#00ff9d" : "#ff3f5a", fontFamily: "'Space Mono',monospace", fontWeight: 700 }}>{m.reusable ? "REUSE" : "TREAT"}</span>
-              <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 3, background: "#071828", color: "#2a5070", fontFamily: "'Space Mono',monospace" }}>Tank {m.tank}</span>
-            </div>
-            <div style={{ fontSize: 11, color: "#8ab0c8", marginBottom: 3 }}>{m.label}</div>
-            <div style={{ fontSize: 9, color: "#2a5070", fontFamily: "'Space Mono',monospace" }}>{m.desc}</div>
-            <div style={{ marginTop: 5, display: "flex", gap: 4, alignItems: "center" }}>
-              <div style={{ height: 3, flex: 1, borderRadius: 99, background: "#071828", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: { NONE: "5%", LOW: "25%", MODERATE: "55%", HIGH: "78%", CRITICAL: "100%" }[m.risk], background: m.hex, borderRadius: 99 }} />
-              </div>
-              <span style={{ fontSize: 8, color: m.hex, fontFamily: "'Space Mono',monospace", fontWeight: 700, minWidth: 44 }}>⚡ {m.risk}</span>
-            </div>
-          </div>
-        ))}
-      </Sec>
-    );
-  }
-
-  function renderLogTab() {
-    return (
-      <Sec title="EVENT LOG" sub={`${log.length} events`}>
-        {log.length === 0 && (
-          <div style={{ textAlign: "center", padding: "24px 0", color: "#1a3a5a", fontFamily: "'Space Mono',monospace", fontSize: 10 }}>No events recorded.<br />Run a cycle to begin.</div>
-        )}
-        {log.map((e, i) => (
-          <div key={e.id} className="log-entry" style={{ borderColor: e.col + "28", background: e.col + "08", color: e.col, opacity: 1 - i * 0.05 }}>{e.msg}</div>
-        ))}
-      </Sec>
-    );
-  }
-
-  function renderCanvasOverlays() {
-    return (
-      <>
-        <div style={S.phaseTimeline}>
-          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060", letterSpacing: "0.16em", marginBottom: 8 }}>◈ PIPELINE</div>
-          {PHASES.map((p, i) => {
-            const ci = PHASES.indexOf(phase), done = i < ci, cur = p === phase;
-            const c = PHASE_COLORS[p] || "#4a6580";
+          {/* Result popup after classification */}
+          {lastResult && bracket && (phase === "ROUTING" || phase === "COMPLETE" || phase === "DRAINING") && (() => {
+            const m = BRACKET_META[bracket];
             return (
-              <div key={p} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${cur ? c : done ? "#00ff9d66" : "#0d2235"}`, background: cur ? c : done ? "#00ff9d22" : "transparent", boxShadow: cur ? `0 0 8px ${c}` : "none", animation: cur ? "pulseDot 1s infinite" : "none" }} />
-                <span style={{ fontSize: 9, fontFamily: "'Space Mono',monospace", color: cur ? c : done ? "#1a5a3a" : "#0d2235", fontWeight: cur ? 700 : 400 }}>{p}</span>
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", background: "linear-gradient(135deg,#030c16ee,#071828ee)", border: `1.5px solid ${m.hex}aa`, borderRadius: 14, padding: "16px 20px", textAlign: "center", pointerEvents: "none", backdropFilter: "blur(12px)", minWidth: 180 }}>
+                <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 48, fontWeight: 900, color: m.hex, lineHeight: 1, textShadow: `0 0 24px ${m.hex}66` }}>{bracket}</div>
+                <div style={{ fontSize: 13, color: "#c8e8f8", marginTop: 4, fontWeight: 600 }}>{m.label}</div>
+                <div style={{ marginTop: 8, padding: "6px 12px", borderRadius: 6, background: m.reusable ? "#00281a" : "#1c0208", border: `1px solid ${m.hex}`, color: m.hex, fontFamily: "'Orbitron',monospace", fontSize: 10, fontWeight: 700 }}>
+                  {lastResult.toA ? "→ TANK A · REUSABLE" : "→ TANK B · TREATMENT"}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* STAGE STRIP */}
+        <div style={S.stages}>
+          {PHASES.map((p, i) => {
+            const ci = PHASES.indexOf(phase);
+            const done = i < ci;
+            const cur  = p === phase;
+            const c    = PHASE_COLORS[p] || "#4a6580";
+            return (
+              <div key={p} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderBottom: "1px solid #071828", background: cur ? c + "10" : "transparent", borderLeft: `2px solid ${cur ? c : done ? "#00ff9d33" : "#071828"}`, transition: "all 0.3s", flexShrink: 0 }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: cur ? c : done ? "#00ff9d55" : "#0d2235", boxShadow: cur ? `0 0 8px ${c}` : "none", animation: cur ? "pulseDot 1.2s infinite" : "none" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, fontWeight: 700, color: cur ? c : done ? "#1a5a3a" : "#1a3a5a", letterSpacing: "0.08em" }}>{p}</div>
+                  {cur && (
+                    <div style={{ fontSize: 9, color: c + "aa", fontFamily: "'Space Mono',monospace", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {PHASE_DESCRIPTIONS[p]}
+                    </div>
+                  )}
+                </div>
+                {done && <span style={{ fontSize: 10, color: "#00ff9d66", flexShrink: 0 }}>✓</span>}
               </div>
             );
           })}
-          {activeStage && (
-            <div style={{ marginTop: 8, paddingTop: 7, borderTop: "1px solid #071828" }}>
-              {TANK_STRUCTURE.filter(s => s.id === activeStage).map(s => (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 12 }}>{s.icon}</span>
-                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: s.color, fontWeight: 700 }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
-        {ecActive && (
-          <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", background: "#030c16ee", border: "1px solid #ffdb5833", borderRadius: 8, padding: "10px 16px", backdropFilter: "blur(10px)", pointerEvents: "none", minWidth: 220 }}>
-            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#ffdb5880", letterSpacing: "0.14em", marginBottom: 7, textAlign: "center" }}>◈ EC CHAMBER — 6–8 Al DISCS</div>
-            <div style={{ display: "flex", gap: 4, justifyContent: "center", marginBottom: 7 }}>
-              {Array.from({ length: 7 }).map((_, i) => {
-                const isPos = i % 2 === 0, isActive = i <= Math.floor(ecTimer / 130);
-                return <div key={i} style={{ width: 24, height: 6, borderRadius: 2, background: isActive ? (isPos ? "#00d4ff" : "#ff8c42") : "#071828", border: `1px solid ${isActive ? (isPos ? "#00d4ff44" : "#ff8c4244") : "#0d2235"}`, transition: "all 0.4s", boxShadow: isActive ? `0 0 6px ${isPos ? "#00d4ff" : "#ff8c42"}66` : "none" }} />;
-              })}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ flex: 1, height: 2, background: "#071828", borderRadius: 99, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${(ecTimer / 900) * 100}%`, background: "linear-gradient(90deg,#00d4ff,#ffdb58,#00ff9d)", borderRadius: 99, transition: "width 0.4s" }} />
-              </div>
-              <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 9, color: "#ffdb58", whiteSpace: "nowrap" }}>{Math.floor(ecTimer / 60)}:{String(ecTimer % 60).padStart(2, "0")} / 15:00</span>
-            </div>
-            <div style={{ textAlign: "center", marginTop: 5, fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060" }}>{EC_STAGES[ecStageIdx]?.desc || ""}</div>
-          </div>
-        )}
-
-        {popup && (
-          <div className="modal-in" style={{ ...S.modal, borderColor: BRACKET_META[popup.br].hex + "aa", boxShadow: `0 0 80px ${BRACKET_META[popup.br].hex}28` }}>
-            <button onClick={() => setPopup(null)} style={S.closeBtn}>✕</button>
-            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060", letterSpacing: "0.2em", marginBottom: 12 }}>◈ WATER QUALITY REPORT</div>
-            <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 72, fontWeight: 900, color: BRACKET_META[popup.br].hex, lineHeight: 1, textShadow: `0 0 40px ${BRACKET_META[popup.br].hex}66` }}>{popup.br}</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#c8e8f8", marginTop: 8 }}>{BRACKET_META[popup.br].label}</div>
-            <div style={{ fontSize: 10, color: "#2a5070", marginTop: 4, fontFamily: "'Space Mono',monospace" }}>{BRACKET_META[popup.br].desc}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 16 }}>
-              {[["pH", popup.rd.ph, ""], ["TDS", popup.rd.tds, " mg/L"], ["Turbidity", popup.rd.turbidity, " NTU"], ["ORP", popup.rd.orp, " mV"]].map(([k, v, u]) => (
-                <div key={k} style={{ background: "#030c16", borderRadius: 8, padding: "8px 10px", border: "1px solid #0d2235", textAlign: "center" }}>
-                  <div style={{ fontSize: 9, color: "#1a3a5a", fontFamily: "'Space Mono',monospace", marginBottom: 2 }}>{k}</div>
-                  <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 15, fontWeight: 700, color: "#c8e8f8" }}>{v}<span style={{ fontSize: 9, opacity: 0.5 }}>{u}</span></div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "center" }}>
-              <div style={{ padding: "8px 16px", borderRadius: 6, background: BRACKET_META[popup.br].reusable ? "#00281a" : "#1c0208", border: `1.5px solid ${BRACKET_META[popup.br].hex}`, color: BRACKET_META[popup.br].hex, fontFamily: "'Orbitron',monospace", fontSize: 11, fontWeight: 700 }}>
-                {popup.toA ? "→ TANK A  ·  REUSABLE" : "→ TANK B  ·  TREATMENT"}
-              </div>
-              <div style={{ padding: "8px 12px", borderRadius: 6, background: "#0d1a2a", border: `1.5px solid ${BRACKET_META[popup.br].hex}44`, color: BRACKET_META[popup.br].hex, fontSize: 11, fontWeight: 700 }}>{BRACKET_META[popup.br].risk}</div>
-            </div>
-          </div>
-        )}
-
-        <div style={S.legend}>
-          {[["#d4a017","Oil film"],["#00d4ff","Clean water"],["#00ff9d","Sensor zone"],["#5c2e0a","Sludge"],["#ddf4ff","H₂ bubbles"],["#7fffd4","Lamella"],["#c084fc", gateOpen ? "Gate OPEN" : "Gate CLOSED"]].map(([c,l]) => (
-            <div key={l} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 9, color: "#2a5070", fontFamily: "'Space Mono',monospace" }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: c, flexShrink: 0, boxShadow: `0 0 5px ${c}88` }} />{l}
-            </div>
-          ))}
-        </div>
-
-        <div style={S.valveRow}>
-          <VPill label="VALVE A" open={valveA > 0.5} col="#00ff9d" dest="→ Tank A" />
-          <VPill label="VALVE B" open={valveB > 0.5} col="#ff3f5a" dest="→ Tank B" />
-        </div>
-
-        <div style={S.tankLevels}>
-          <TLvl label="TANK A" sub="REUSE" level={tankALevel} col="#00ff9d" />
-          <TLvl label="TANK B" sub="TREATMENT" level={tankBLevel} col="#ff3f5a" />
-        </div>
-
-        <div style={S.sparkPanel}>
-          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060", letterSpacing: "0.14em", marginBottom: 7 }}>◈ LIVE SENSOR FEED</div>
-          {[
-            { label: "pH", data: sparkPH, col: "#00ff9d", val: readings.ph.toFixed(2), unit: "" },
-            { label: "TDS", data: sparkTDS, col: "#ff8c42", val: readings.tds, unit: " mg/L" },
-            { label: "Turb", data: sparkTurb, col: "#00d4ff", val: readings.turbidity.toFixed(1), unit: " NTU" },
-            { label: "ORP", data: sparkORP, col: "#c084fc", val: readings.orp, unit: " mV" },
-          ].map(s => (
-            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
-              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: s.col, width: 28, flexShrink: 0, fontWeight: 700 }}>{s.label}</span>
-              <Sparkline data={s.data} color={s.col} w={82} h={18} />
-              <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 9, color: s.col, minWidth: 52, textAlign: "right", flexShrink: 0, whiteSpace: "nowrap" }}>{s.val}<span style={{ fontSize: 7, opacity: 0.5 }}>{s.unit}</span></span>
-            </div>
-          ))}
-        </div>
-
-        {showAnalytics && (
-          <div style={S.analyticsPanel}>
-            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: "#1a4060", letterSpacing: "0.14em", marginBottom: 8 }}>◈ ANALYTICS</div>
-            {[
-              { k: "Water Reuse", v: reusePct + "%", c: "#00ff9d" },
-              { k: "Water Type", v: WATER_TYPES[waterType].label.split(" ")[0], c: WATER_TYPES[waterType].color },
-              { k: "Efficiency", v: efficiency + "%", c: "#ffdb58" },
-              { k: "Lamella Eff.", v: lamellaEff + "%", c: "#7fffd4" },
-              { k: "EC Reversals", v: String(polarityCount), c: "#ffdb58" },
-              { k: "Confidence", v: "97.4%", c: "#c084fc" },
-              { k: "Cycles", v: String(cycleCount), c: "#ff8c42" },
-              { k: "Avg Turb", v: readings.turbidity.toFixed(1) + " NTU", c: "#00d4ff" },
-            ].map(r => (
-              <div key={r.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #071828" }}>
-                <span style={{ fontSize: 10, color: "#2a5070", fontFamily: "'Space Mono',monospace" }}>{r.k}</span>
-                <span style={{ fontFamily: "'Orbitron',monospace", fontSize: 11, fontWeight: 700, color: r.c }}>{r.v}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {showDrift && (
-          <div style={{ ...S.driftBadge, right: showAnalytics ? 180 : 10, borderColor: { normal: "#00ff9d33", degraded: "#ffdb5866", flatline: "#ff3f5a88", recalibrating: "#00d4ff66" }[driftState], background: { normal: "#00ff9d0a", degraded: "#ffdb580e", flatline: "#ff3f5a0e", recalibrating: "#00d4ff0e" }[driftState] }}>
-            <div className={driftState !== "normal" ? "pulse-dot" : ""} style={{ width: 6, height: 6, borderRadius: "50%", background: { normal: "#00ff9d", degraded: "#ffdb58", flatline: "#ff3f5a", recalibrating: "#00d4ff" }[driftState], flexShrink: 0 }} />
-            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: { normal: "#00ff9d", degraded: "#ffdb58", flatline: "#ff3f5a", recalibrating: "#00d4ff" }[driftState] }}>
-              {{ normal: "● SENSORS NOMINAL", degraded: "⚠ DRIFT DETECTED", flatline: "⛔ FLATLINE", recalibrating: "↻ RECALIBRATING" }[driftState]}
-            </span>
-          </div>
-        )}
-      </>
-    );
-  }
+      </div>
+    </div>
+  );
 
 }
 
@@ -1821,129 +1376,59 @@ function TLvl({ label, sub, level, col }) {
 
 // ─── STYLES ───────────────────────────────────────────────────
 const S = {
-  root: { width: "100%", height: "100dvh", background: "#020b14", display: "flex", flexDirection: "column", fontFamily: "'Rajdhani',sans-serif", overflow: "hidden", color: "#c8e8f8" },
-  // Desktop header (52px), mobile header (48px)
-  header: { height: 52, background: "linear-gradient(90deg,#020b14,#030e1a 40%,#020b14)", borderBottom: "1px solid #071828", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", flexShrink: 0, gap: 10 },
-  logoRow: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
-  logoPulse: { width: 8, height: 8, borderRadius: "50%", background: "#00ff9d", boxShadow: "0 0 14px #00ff9d", flexShrink: 0 },
-  logoText: { fontFamily: "'Orbitron',monospace", fontWeight: 900, fontSize: 17, letterSpacing: "0.04em", color: "#c8e8f8" },
-  logoDivider: { width: 1, height: 18, background: "#071828" },
-  logoSub: { fontSize: 9, color: "#1a3a5a", fontFamily: "'Space Mono',monospace", whiteSpace: "nowrap" },
-  headerCenter: { display: "flex", alignItems: "center", gap: 8, flex: 1, justifyContent: "center", minWidth: 0, overflow: "hidden" },
-  pill: { display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 5, border: "1px solid", fontFamily: "'Space Mono',monospace", fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.3s", whiteSpace: "nowrap", flexShrink: 0 },
-  headerStats: { display: "flex", alignItems: "center", gap: 2, flexShrink: 0 },
-  hStat: { display: "flex", flexDirection: "column", alignItems: "center", gap: 1, padding: "2px 8px", borderLeft: "1px solid #071828" },
-  hint: { fontSize: 9, color: "#0d2235", fontFamily: "'Space Mono',monospace", borderLeft: "1px solid #071828", paddingLeft: 10 },
-  // Desktop: sidebar + canvas. Mobile: canvas fills, panel is bottom sheet
-  body: { flex: 1, display: "grid", gridTemplateColumns: "228px 1fr", overflow: "hidden" },
-  bodyMobile: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 },
-  panel: { background: "#030c16", borderRight: "1px solid #071828", display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden" },
-  // Mobile panel: bottom sheet
-  panelMobile: { flexShrink: 0, background: "#030c16f5", borderTop: "1px solid #0d2235", display: "flex", flexDirection: "column", zIndex: 50, backdropFilter: "blur(16px)", borderRadius: "16px 16px 0 0", transition: "height 0.32s cubic-bezier(0.4,0,0.2,1)", overflow: "hidden" },
-  tabBar: { display: "flex", borderBottom: "1px solid #071828", flexShrink: 0 },
-  tab: { flex: 1, padding: "10px 0", background: "transparent", border: "none", color: "#1a4060", fontFamily: "'Space Mono',monospace", fontSize: 9, fontWeight: 700, cursor: "pointer", letterSpacing: "0.1em", transition: "all 0.2s", textTransform: "uppercase" },
-  tabMobile: { flex: 1, padding: "12px 0", background: "transparent", border: "none", color: "#1a4060", fontFamily: "'Space Mono',monospace", fontSize: 9, fontWeight: 700, cursor: "pointer", letterSpacing: "0.08em", transition: "all 0.2s", textTransform: "uppercase" },
-  tabActive: { color: "#00d4ff", borderBottom: "2px solid #00d4ff", background: "#00d4ff08" },
-  canvasWrap: { position: "relative", overflow: "hidden", touchAction: "none" },
-  canvasWrapMobile: { flex: 1, minHeight: 0, position: "relative", overflow: "hidden", touchAction: "none" },
+  root: { width: "100%", height: "100dvh", background: "#020b14", display: "flex", flexDirection: "column", fontFamily: "'Rajdhani',sans-serif", color: "#c8e8f8", overflow: "hidden" },
+  header: { height: 52, minHeight: 52, background: "#010810", borderBottom: "1px solid #071828", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", gap: 10, flexShrink: 0 },
+  logoRow: { display: "flex", alignItems: "center", gap: 8 },
+  logoPulse: { width: 8, height: 8, borderRadius: "50%", background: "#00ff9d", boxShadow: "0 0 12px #00ff9d", flexShrink: 0 },
+  logoText: { fontFamily: "'Orbitron',monospace", fontWeight: 900, fontSize: 16, color: "#c8e8f8" },
+  body: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" },
+  canvasWrap: { flex: 1, minHeight: 0, position: "relative", overflow: "hidden", touchAction: "none" },
   canvas: { width: "100%", height: "100%", display: "block", touchAction: "none", userSelect: "none" },
-  modal: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-55%)", background: "linear-gradient(135deg,#030c16,#071828)", border: "1.5px solid", borderRadius: 16, padding: "20px 24px 18px", minWidth: 280, maxWidth: "90vw", textAlign: "center", zIndex: 200 },
-  closeBtn: { position: "absolute", top: 10, right: 12, background: "transparent", border: "1px solid #0d2235", borderRadius: "50%", color: "#1a3a5a", fontSize: 11, cursor: "pointer", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" },
-  phaseTimeline: { position: "absolute", top: 10, left: 10, background: "#030c16ee", border: "1px solid #071828", borderRadius: 8, padding: "8px 10px", backdropFilter: "blur(10px)", pointerEvents: "none" },
-  legend: { position: "absolute", bottom: 56, left: 10, display: "flex", flexDirection: "column", gap: 4, background: "#030c16ee", border: "1px solid #071828", padding: "7px 10px", borderRadius: 7, backdropFilter: "blur(10px)", pointerEvents: "none" },
-  valveRow: { position: "absolute", bottom: 10, left: 10, display: "flex", flexDirection: "column", gap: 4, pointerEvents: "none" },
-  tankLevels: { position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 14, pointerEvents: "none" },
-  sparkPanel: { position: "absolute", bottom: 10, right: 10, width: 200, background: "#030c16ee", border: "1px solid #0d2235", borderRadius: 8, padding: "9px 11px", backdropFilter: "blur(12px)", pointerEvents: "none" },
-  analyticsPanel: { position: "absolute", top: 10, right: 10, width: 160, background: "#030c16ee", border: "1px solid #071828", borderRadius: 8, padding: "9px 11px", backdropFilter: "blur(12px)", pointerEvents: "none" },
-  driftBadge: { position: "absolute", top: 10, right: 180, display: "flex", alignItems: "center", gap: 7, padding: "5px 10px", borderRadius: 5, border: "1px solid", backdropFilter: "blur(8px)", pointerEvents: "none" },
+  stages: { flexShrink: 0, height: 224, overflowY: "auto", overflowX: "hidden", background: "#030c16", borderTop: "1px solid #0d2235" },
+  modal: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", background: "#030c16", border: "1px solid #0d2235", borderRadius: 12, padding: 16, zIndex: 100 },
+  closeBtn: { position: "absolute", top: 8, right: 10, background: "transparent", border: "none", color: "#4a7090", fontSize: 14, cursor: "pointer" },
+  driftBadge: { position: "absolute", top: 10, right: 10, display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 5, border: "1px solid #0d2235", backdropFilter: "blur(8px)", pointerEvents: "none" },
 };
 
 // ─── GLOBAL CSS ───────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0;}
-  html{-webkit-text-size-adjust:100%;}
-  body{margin:0;padding:0;overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}
-  ::-webkit-scrollbar{width:3px;}
-  ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:#0d2235;border-radius:2px;}
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #0d2235; border-radius: 2px; }
 
-  @keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.7)}}
-  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-  @keyframes modalIn{from{opacity:0;transform:translate(-50%,-60%) scale(0.88)}to{opacity:1;transform:translate(-50%,-55%) scale(1)}}
-  @keyframes logSlide{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-  @keyframes saltFade{0%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}
-  @keyframes ecPulse{0%,100%{box-shadow:0 0 6px #ffdb5866}50%{box-shadow:0 0 18px #ffdb58cc}}
-  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.75)} }
+  @keyframes spin     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
-  .pulse-dot{animation:pulseDot 1.4s infinite;}
-  .spin-icon{display:inline-block;animation:spin 1s linear infinite;}
-  .modal-in{animation:modalIn 0.38s cubic-bezier(0.34,1.56,0.64,1);}
-  .ec-active-disc{animation:ecPulse 1.2s infinite;}
+  .pulse-dot { animation: pulseDot 1.4s ease-in-out infinite; }
+  .spin-icon { display: inline-block; animation: spin 1s linear infinite; }
 
-  .btn-primary{
-    width:100%;padding:12px;border-radius:8px;
-    border:1px solid #00d4ff66;background:linear-gradient(135deg,#00d4ff0d,#00ff9d0d);
-    color:#00d4ff;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;
-    letter-spacing:0.08em;cursor:pointer;transition:all 0.2s;
-    display:flex;align-items:center;justify-content:center;gap:8px;
-    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  .btn-primary {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 20px; border-radius: 8px;
+    border: 1px solid #00d4ff66;
+    background: linear-gradient(135deg, #00d4ff0d, #00ff9d0d);
+    color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 11px;
+    font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
+    transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation; white-space: nowrap;
   }
-  .btn-primary:hover:not(:disabled){background:linear-gradient(135deg,#00d4ff1a,#00ff9d1a);box-shadow:0 0 20px #00d4ff22;border-color:#00d4ffaa;}
-  .btn-primary:disabled{cursor:not-allowed;opacity:0.4;}
-
-  .btn-running{
-    width:100%;padding:12px;border-radius:8px;
-    border:1px solid #00d4ff33;background:#00d4ff08;
-    color:#00d4ff66;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;
-    letter-spacing:0.08em;cursor:not-allowed;
-    display:flex;align-items:center;justify-content:center;gap:8px;
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #00d4ff1a, #00ff9d1a);
+    box-shadow: 0 0 20px #00d4ff22; border-color: #00d4ffaa;
   }
+  .btn-primary:disabled { cursor: not-allowed; opacity: 0.4; }
 
-  .btn-sec{
-    padding:10px 12px;border-radius:6px;border:1px solid #0d2235;background:#030c16;
-    font-family:'Space Mono',monospace;font-size:9.5px;font-weight:700;cursor:pointer;
-    letter-spacing:0.05em;transition:all 0.2s;color:#2a5070;
-    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
-  }
-  .btn-sec:active:not(:disabled){filter:brightness(1.5);border-color:currentColor;}
-  .btn-sec:hover:not(:disabled){filter:brightness(1.5);border-color:currentColor;}
-  .btn-sec:disabled{opacity:0.3;cursor:not-allowed;}
-  .btn-yellow{color:#ffdb58;border-color:#ffdb5822;}
-  .btn-ghost{color:#4a7090;border-color:#0d2235;}
-  .btn-blue{color:#00d4ff;border-color:#00d4ff22;}
-
-  input[type=range].slider{
-    width:100%;-webkit-appearance:none;height:4px;border-radius:99px;
-    background:#071828;cursor:pointer;outline:none;
-  }
-  input[type=range].slider::-webkit-slider-thumb{
-    -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
-    background:var(--sc,#00d4ff);border:2px solid var(--sc,#00d4ff);
-    box-shadow:0 0 8px var(--sc,#00d4ff);cursor:pointer;transition:transform 0.15s;
-  }
-  input[type=range].slider::-webkit-slider-thumb:hover{transform:scale(1.3);}
-  input[type=range].slider:disabled{opacity:0.3;cursor:not-allowed;}
-
-  .sensor-card{
-    border:1px solid;border-radius:8px;padding:10px 12px;margin-bottom:6px;
-    cursor:pointer;transition:all 0.25s;-webkit-tap-highlight-color:transparent;
-    touch-action:manipulation;
-  }
-  .sensor-card:active{filter:brightness(1.1);}
-
-  .log-entry{
-    font-family:'Space Mono',monospace;font-size:9px;padding:6px 10px;border-radius:4px;
-    border:1px solid;line-height:1.55;animation:logSlide 0.3s ease;
-    margin-bottom:3px;
-  }
-
-  /* ── MOBILE overrides ─────────────────────────── */
-  @media (max-width:767px){
-    .hide-mobile{display:none!important;}
-    .btn-primary{font-size:12px;padding:14px;}
-    .btn-sec{padding:11px 14px;font-size:10px;}
-    input[type=range].slider::-webkit-slider-thumb{width:22px;height:22px;}
-    .sensor-card{padding:12px 14px;margin-bottom:8px;}
+  .btn-running {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 20px; border-radius: 8px;
+    border: 1px solid #00d4ff33; background: #00d4ff08;
+    color: #00d4ff66; font-family: 'Orbitron', monospace; font-size: 11px;
+    font-weight: 700; letter-spacing: 0.08em; cursor: not-allowed;
+    white-space: nowrap;
   }
 `;
+
