@@ -1273,7 +1273,7 @@ export default function GreywaterViz() {
           })()}
         </div>
 
-        {/* STAGE STRIP */}
+        {/* STAGE STRIP — compact horizontal pills */}
         <div style={S.stages}>
           {PHASES.map((p, i) => {
             const ci = PHASES.indexOf(phase);
@@ -1281,20 +1281,22 @@ export default function GreywaterViz() {
             const cur  = p === phase;
             const c    = PHASE_COLORS[p] || "#4a6580";
             return (
-              <div key={p} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderBottom: "1px solid #071828", background: cur ? c + "10" : "transparent", borderLeft: `2px solid ${cur ? c : done ? "#00ff9d33" : "#071828"}`, transition: "all 0.3s", flexShrink: 0 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: cur ? c : done ? "#00ff9d55" : "#0d2235", boxShadow: cur ? `0 0 8px ${c}` : "none", animation: cur ? "pulseDot 1.2s infinite" : "none" }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, fontWeight: 700, color: cur ? c : done ? "#1a5a3a" : "#1a3a5a", letterSpacing: "0.08em" }}>{p}</div>
-                  {cur && (
-                    <div style={{ fontSize: 9, color: c + "aa", fontFamily: "'Space Mono',monospace", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {PHASE_DESCRIPTIONS[p]}
-                    </div>
-                  )}
-                </div>
-                {done && <span style={{ fontSize: 10, color: "#00ff9d66", flexShrink: 0 }}>✓</span>}
+              <div key={p} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+                {/* dot */}
+                <div style={{ width: cur ? 8 : 5, height: cur ? 8 : 5, borderRadius: "50%", background: cur ? c : done ? "#00ff9d44" : "#0d2235", boxShadow: cur ? `0 0 8px ${c}` : "none", animation: cur ? "pulseDot 1.2s infinite" : "none", transition: "all 0.3s", flexShrink: 0 }} />
+                {/* label */}
+                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 7, fontWeight: cur ? 700 : 400, color: cur ? c : done ? "#1a5a3a" : "#1a3a5a", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                  {p === "SEPARATING" ? "SEPAR." : p === "CLASSIFYING" ? "CLASS." : p}
+                </span>
               </div>
             );
           })}
+          {/* current phase description */}
+          {phase !== "IDLE" && (
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, textAlign: "center", fontSize: 8, color: (PHASE_COLORS[phase] || "#4a6580") + "99", fontFamily: "'Space Mono',monospace", padding: "0 8px 2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", pointerEvents: "none" }}>
+              {PHASE_DESCRIPTIONS[phase]}
+            </div>
+          )}
         </div>
 
       </div>
@@ -1383,7 +1385,7 @@ const S = {
   body: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" },
   canvasWrap: { flex: 1, minHeight: 0, position: "relative", overflow: "hidden", touchAction: "none" },
   canvas: { width: "100%", height: "100%", display: "block", touchAction: "none", userSelect: "none" },
-  stages: { flexShrink: 0, height: 224, overflowY: "auto", overflowX: "hidden", background: "#030c16", borderTop: "1px solid #0d2235" },
+  stages: { flexShrink: 0, height: 44, position: "relative", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "0 8px 14px", background: "#030c16", borderTop: "1px solid #0d2235", overflow: "hidden" },
   modal: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", background: "#030c16", border: "1px solid #0d2235", borderRadius: 12, padding: 16, zIndex: 100 },
   closeBtn: { position: "absolute", top: 8, right: 10, background: "transparent", border: "none", color: "#4a7090", fontSize: 14, cursor: "pointer" },
   driftBadge: { position: "absolute", top: 10, right: 10, display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 5, border: "1px solid #0d2235", backdropFilter: "blur(8px)", pointerEvents: "none" },
