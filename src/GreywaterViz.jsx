@@ -176,14 +176,16 @@ const _tmpColor = new THREE.Color();
 function buildScene(canvas, getState) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  const w = canvas.clientWidth  || canvas.parentElement?.clientWidth  || window.innerWidth;
+  const h = canvas.clientHeight || canvas.parentElement?.clientHeight || window.innerHeight;
+  renderer.setSize(w, h);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const camera = new THREE.PerspectiveCamera(40, canvas.clientWidth / canvas.clientHeight, 0.1, 120);
+  const camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 120);
   camera.position.set(6.2, 3.8, 7.0);
   camera.lookAt(0, 0.3, 0);
 
@@ -941,16 +943,21 @@ function buildScene(canvas, getState) {
   requestAnimationFrame(ts => { lastTime = ts; animate(ts); });
 
   function onResize() {
-    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    const rw = canvas.clientWidth  || canvas.parentElement?.clientWidth  || window.innerWidth;
+    const rh = canvas.clientHeight || canvas.parentElement?.clientHeight || window.innerHeight;
+    if (rw === 0 || rh === 0) return;
+    renderer.setSize(rw, rh);
+    camera.aspect = rw / rh;
     camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", onResize);
+  window.addEventListener("orientationchange", () => setTimeout(onResize, 150));
 
   // Cleanup — dispose all tracked resources
   return () => {
     cancelAnimationFrame(raf);
     window.removeEventListener("resize", onResize);
+    window.removeEventListener("orientationchange", onResize);
     canvas.removeEventListener("click", onCanvasClick);
     Object.entries(handlers).forEach(([k, v]) => canvas.removeEventListener(k, v));
     Object.entries(touchHandlers).forEach(([k, v]) => canvas.removeEventListener(k, v));
@@ -1063,9 +1070,14 @@ export default function GreywaterViz() {
   // Mount scene once; also clear any pending cycle timers on unmount
   useEffect(() => {
     const canvas = canvasRef.current;
-    const cleanupScene = buildScene(canvas, () => stateRef.current);
+    let cleanupScene = null;
+    // Defer one frame so the canvas has real clientWidth/Height on mobile
+    const raf = requestAnimationFrame(() => {
+      cleanupScene = buildScene(canvas, () => stateRef.current);
+    });
     return () => {
-      cleanupScene();
+      cancelAnimationFrame(raf);
+      if (cleanupScene) cleanupScene();
       cycleTimers.current.forEach(id => clearTimeout(id));
       cycleTimers.current = [];
     };
@@ -1273,7 +1285,7 @@ export default function GreywaterViz() {
         /* ══ MOBILE LAYOUT ══ */
         <div style={S.bodyMobile}>
           {/* Canvas fills screen above sheet */}
-          <div style={{ ...S.canvasWrapMobile, height: sheetOpen ? "45vh" : "calc(100vh - 48px - 52px)" }}>
+          <div style={{ ...S.canvasWrapMobile, flex: 1, minHeight: 0 }}>
             <canvas ref={canvasRef} style={S.canvas} />
 
             {/* Minimal phase dot on mobile */}
@@ -1809,7 +1821,7 @@ function TLvl({ label, sub, level, col }) {
 
 // ─── STYLES ───────────────────────────────────────────────────
 const S = {
-  root: { width: "100vw", height: "100vh", background: "#020b14", display: "flex", flexDirection: "column", fontFamily: "'Rajdhani',sans-serif", overflow: "hidden", color: "#c8e8f8" },
+  root: { width: "100%", height: "100dvh", background: "#020b14", display: "flex", flexDirection: "column", fontFamily: "'Rajdhani',sans-serif", overflow: "hidden", color: "#c8e8f8" },
   // Desktop header (52px), mobile header (48px)
   header: { height: 52, background: "linear-gradient(90deg,#020b14,#030e1a 40%,#020b14)", borderBottom: "1px solid #071828", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", flexShrink: 0, gap: 10 },
   logoRow: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
@@ -1824,16 +1836,16 @@ const S = {
   hint: { fontSize: 9, color: "#0d2235", fontFamily: "'Space Mono',monospace", borderLeft: "1px solid #071828", paddingLeft: 10 },
   // Desktop: sidebar + canvas. Mobile: canvas fills, panel is bottom sheet
   body: { flex: 1, display: "grid", gridTemplateColumns: "228px 1fr", overflow: "hidden" },
-  bodyMobile: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" },
+  bodyMobile: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 },
   panel: { background: "#030c16", borderRight: "1px solid #071828", display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden" },
   // Mobile panel: bottom sheet
-  panelMobile: { position: "absolute", bottom: 0, left: 0, right: 0, background: "#030c16f5", borderTop: "1px solid #0d2235", display: "flex", flexDirection: "column", zIndex: 50, backdropFilter: "blur(16px)", borderRadius: "16px 16px 0 0", transition: "height 0.32s cubic-bezier(0.4,0,0.2,1)", overflow: "hidden" },
+  panelMobile: { flexShrink: 0, background: "#030c16f5", borderTop: "1px solid #0d2235", display: "flex", flexDirection: "column", zIndex: 50, backdropFilter: "blur(16px)", borderRadius: "16px 16px 0 0", transition: "height 0.32s cubic-bezier(0.4,0,0.2,1)", overflow: "hidden" },
   tabBar: { display: "flex", borderBottom: "1px solid #071828", flexShrink: 0 },
   tab: { flex: 1, padding: "10px 0", background: "transparent", border: "none", color: "#1a4060", fontFamily: "'Space Mono',monospace", fontSize: 9, fontWeight: 700, cursor: "pointer", letterSpacing: "0.1em", transition: "all 0.2s", textTransform: "uppercase" },
   tabMobile: { flex: 1, padding: "12px 0", background: "transparent", border: "none", color: "#1a4060", fontFamily: "'Space Mono',monospace", fontSize: 9, fontWeight: 700, cursor: "pointer", letterSpacing: "0.08em", transition: "all 0.2s", textTransform: "uppercase" },
   tabActive: { color: "#00d4ff", borderBottom: "2px solid #00d4ff", background: "#00d4ff08" },
   canvasWrap: { position: "relative", overflow: "hidden", touchAction: "none" },
-  canvasWrapMobile: { flex: 1, position: "relative", overflow: "hidden", touchAction: "none" },
+  canvasWrapMobile: { flex: 1, minHeight: 0, position: "relative", overflow: "hidden", touchAction: "none" },
   canvas: { width: "100%", height: "100%", display: "block", touchAction: "none", userSelect: "none" },
   modal: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-55%)", background: "linear-gradient(135deg,#030c16,#071828)", border: "1.5px solid", borderRadius: 16, padding: "20px 24px 18px", minWidth: 280, maxWidth: "90vw", textAlign: "center", zIndex: 200 },
   closeBtn: { position: "absolute", top: 10, right: 12, background: "transparent", border: "1px solid #0d2235", borderRadius: "50%", color: "#1a3a5a", fontSize: 11, cursor: "pointer", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" },
